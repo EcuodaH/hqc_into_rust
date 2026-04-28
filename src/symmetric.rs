@@ -25,32 +25,3 @@ pub fn hash_i(output: &mut [u8], seed: &[u8]) {
     output.copy_from_slice(&ctx.finalize());
 }
 
-// SHA3-256( ek_kem || domain ) → 32 bytes
-pub fn hash_h(output: &mut [u8; SEED_BYTES], ek_kem: &[u8]) {
-    let mut ctx = Sha3_256::new();
-    Digest::update(&mut ctx, ek_kem);
-    Digest::update(&mut ctx, &[HQC_H_FCT_DOMAIN]);
-    output.copy_from_slice(&ctx.finalize());
-}
-
-// SHA3-512( H(ek_kem) || m || salt || domain ) → SHARED_SECRET_BYTES + SEED_BYTES bytes
-pub fn hash_g(output: &mut [u8], hash_ek_kem: &[u8], m: &[u8], salt: &[u8]) {
-    let mut ctx = Sha3_512::new();
-    Digest::update(&mut ctx, hash_ek_kem);
-    Digest::update(&mut ctx, m);
-    Digest::update(&mut ctx, salt);
-    Digest::update(&mut ctx, &[HQC_G_FCT_DOMAIN]);
-    output.copy_from_slice(&ctx.finalize());
-}
-
-// SHA3-256( H(ek_kem) || sigma || u || v || salt || domain ) → 32 bytes
-pub fn hash_j(output: &mut [u8; SHARED_SECRET_BYTES], hash_ek_kem: &[u8], sigma: &[u8], u: &[u8], v: &[u8], salt: &[u8]) {
-    let mut ctx = Sha3_256::new();
-    Digest::update(&mut ctx, hash_ek_kem);
-    Digest::update(&mut ctx, sigma);
-    Digest::update(&mut ctx, u);
-    Digest::update(&mut ctx, v);
-    Digest::update(&mut ctx, salt);
-    Digest::update(&mut ctx, &[HQC_J_FCT_DOMAIN]);
-    output.copy_from_slice(&ctx.finalize());
-}
