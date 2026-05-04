@@ -16,6 +16,7 @@ mod reed_solomon;
 mod reed_muller;
 mod tables;
 mod fft;
+mod kem;
 
 
 fn main() {

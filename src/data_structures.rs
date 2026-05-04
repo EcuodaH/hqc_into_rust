@@ -5,6 +5,11 @@ pub struct CiphertextPke {
     pub u: [u64; VEC_N_SIZE_64],
     pub v: [u64; VEC_N1N2_SIZE_64],
 }
+#[derive(Clone, Copy)]
+pub struct CiphertextKem {
+    pub c_pke: CiphertextPke,
+    pub salt: [u8; SALT_BYTES],
+}
 
 #[derive(Clone, Copy)]
 pub struct RmCodeword {

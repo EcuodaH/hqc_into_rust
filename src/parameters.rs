@@ -25,6 +25,7 @@ pub const VEC_K_SIZE_BYTES: usize = PARAM_K;
 pub const VEC_K_SIZE_64: usize = PARAM_K.div_ceil(8);
 
 pub const SEED_BYTES: usize = 32;
+pub const SALT_BYTES: usize = 16;
 
 pub const UTILS_REJECTION_THRESHOLD: u32 = 16767881;
 pub const PARAM_N_MU: u64 = 243079;
@@ -37,7 +38,6 @@ pub const PARAM_G: usize = 31;
 pub const PARAM_FFT: usize = 4;
 
 pub const PARAM_SECURITY_BYTES: usize = 16;
-pub const SALT_BYTES: usize = 16;
 pub const SHARED_SECRET_BYTES: usize = 32;
 
 pub const VEC_N1N2_SIZE_BYTES: usize = PARAM_N1N2 / 8;

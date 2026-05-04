@@ -37,7 +37,7 @@ pub fn reed_solomon_encode(cdw: &mut [u64], msg: & [u64]){
         for k in (1..=(PARAM_N1 - PARAM_K - 1)).rev(){
             cdw_bytes[k] = cdw_bytes[k - 1] ^ (tmp[k] as u8);
         }
-         cdw_bytes[0] = tmp[0] as u8;
+        cdw_bytes[0] = tmp[0] as u8;
     }
     cdw_bytes[PARAM_N1 - PARAM_K..].copy_from_slice(&msg_bytes);
     let cdw_raw = unsafe {
@@ -228,6 +228,13 @@ pub fn reed_solomon_decode(msg : &mut [u64], cdw: &mut [u64]){
 
     cdw_bytes.zeroize();
 }
+
+
+
+
+
+
+
 
 #[test]
 fn test_reed_solomon_encode_decode() {
