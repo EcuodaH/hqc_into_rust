@@ -127,6 +127,16 @@ pub fn vect_add(o: &mut [u64], v1: &[u64], v2: &[u64], size: usize){
     }
 }
 
+pub fn vect_compare(v1: &[u8], v2: &[u8], size: usize) -> u8{
+    let mut r: u16 = 0x0100;
+
+    for i in 0..size{
+        r |= (v1[i] ^v2[i]) as u16;
+    }
+
+    ((r - 1) >> 8) as u8
+}
+
 pub fn vect_truncate(v: &mut [u64]){
     let orig_words: usize = (PARAM_N + 63) /64;
     let mut new_full_words: usize = PARAM_N1N2 / 64;

@@ -1,4 +1,5 @@
 use crate::parameters::*;
+use crate::data_structures::*;
 use sha3::digest::core_api::CoreWrapper;
 use sha3::{Digest, Sha3_256, Sha3_512, Shake256, digest};
 use sha3::digest::{Update, ExtendableOutput, XofReader};
@@ -52,7 +53,33 @@ pub fn hash_h(output: &mut [u8], ek_kem: &[u8; PUBLIC_KEY_BYTES]){
     output.copy_from_slice(&ctx.finalize());
 } 
 
-pub fn hash_g(){
-    
+pub fn hash_g(output: &mut [u8], hash_ek_kem: &[u8; SEED_BYTES], m: &[u8; PARAM_SECURITY_BYTES], salt: &[u8; SALT_BYTES]){
+    let mut ctx = Sha3_512::new();
+    Digest::update(&mut ctx, hash_ek_kem); 
+    Digest::update(&mut ctx, m);
+    Digest::update(&mut ctx, salt);
+    Digest::update(&mut ctx, &[HQC_G_FCT_DOMAIN]);
+    output.copy_from_slice(&ctx.finalize());
+}
+
+pub fn hash_j(output: &mut [u8], hash_ek_kem: &[u8; SEED_BYTES], sigma: &[u8; PARAM_SECURITY_BYTES], c_kem: &CiphertextKem){
+    let mut ctx = Sha3_256::new();
+    let u_bytes = unsafe {
+        std::slice::from_raw_parts(c_kem.c_pke.u.as_ptr() as *const u8, VEC_N_SIZE_BYTES)
+    };
+    let v_bytes = unsafe {
+        std::slice::from_raw_parts(c_kem.c_pke.v.as_ptr() as *const u8, VEC_N1N2_SIZE_BYTES)
+    };
+
+    Digest::update(&mut ctx, hash_ek_kem);
+    Digest::update(&mut ctx, sigma);
+
+
+    Digest::update(&mut ctx, u_bytes);
+    Digest::update(&mut ctx, v_bytes);
+    Digest::update(&mut ctx, &c_kem.salt);
+    Digest::update(&mut ctx, &[HQC_J_FCT_DOMAIN]);
+    output.copy_from_slice(&ctx.finalize());
+
 }
 
