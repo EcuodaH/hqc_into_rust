@@ -10,9 +10,10 @@ pub const PARAM_OMEGA: usize = 66;
 pub const PARAM_OMEGA_R: usize = 75;
 pub const PARAM_OMEGA_E: usize = 75;
 
-pub const PUBLIC_KEY_BYTES: usize = SEED_BYTES + VEC_N_SIZE_BYTES;
-pub const SECRET_KEY_BYTES: usize = SEED_BYTES;
-pub const CRYPTO_SECRETKEYBYTES: usize = 2321;
+pub const PUBLIC_KEY_BYTES: usize = 2241;
+pub const SECRET_KEY_BYTES: usize = 2321;
+pub const SHARED_SECRET_BYTES: usize = 32;
+pub const CIPHERTEXT_BYTES: usize = 4433;
 
 pub const VEC_N_SIZE_BYTES: usize = PARAM_N.div_ceil(8);
 pub const VEC_N1_SIZE_BYTES: usize = PARAM_N1;
@@ -25,6 +26,7 @@ pub const VEC_K_SIZE_BYTES: usize = PARAM_K;
 pub const VEC_K_SIZE_64: usize = PARAM_K.div_ceil(8);
 
 pub const SEED_BYTES: usize = 32;
+
 pub const SALT_BYTES: usize = 16;
 
 pub const UTILS_REJECTION_THRESHOLD: u32 = 16767881;
@@ -38,7 +40,6 @@ pub const PARAM_G: usize = 31;
 pub const PARAM_FFT: usize = 4;
 
 pub const PARAM_SECURITY_BYTES: usize = 16;
-pub const SHARED_SECRET_BYTES: usize = 32;
 
 pub const VEC_N1N2_SIZE_BYTES: usize = PARAM_N1N2 / 8;
 
