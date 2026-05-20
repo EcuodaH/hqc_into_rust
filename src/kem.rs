@@ -25,10 +25,13 @@ pub fn crypto_kem_keypair(ek_kem: &mut [u8], dk_kem: &mut [u8], ctx: &mut impl X
     symmetric::xof_get_bytes(&mut kem_reader, &mut seed_pke);
     symmetric::xof_get_bytes(&mut kem_reader, &mut sigma);
 
-    hqc::hqc_pke_keygen(&mut ek_pke,&mut dk_pke, &seed_pke);   
+
+    hqc::hqc_pke_keygen(&mut ek_pke,&mut dk_pke, &seed_pke);  
+
 
     ek_kem[0..PUBLIC_KEY_BYTES].copy_from_slice(&ek_pke[..PUBLIC_KEY_BYTES]);
-    dk_kem[0..PUBLIC_KEY_BYTES].copy_from_slice(&ek_kem[..PUBLIC_KEY_BYTES]);
+
+    dk_kem[0..PUBLIC_KEY_BYTES].copy_from_slice(&ek_pke[..PUBLIC_KEY_BYTES]);
     dk_kem[(PUBLIC_KEY_BYTES)..(PUBLIC_KEY_BYTES+SEED_BYTES)].copy_from_slice(&dk_pke[..SEED_BYTES]);
     dk_kem[(PUBLIC_KEY_BYTES+SEED_BYTES)..(PUBLIC_KEY_BYTES+SEED_BYTES+PARAM_SECURITY_BYTES)].copy_from_slice(&sigma[..PARAM_SECURITY_BYTES]);
     dk_kem[(PUBLIC_KEY_BYTES+SEED_BYTES+PARAM_SECURITY_BYTES)..(PUBLIC_KEY_BYTES+SEED_BYTES+PARAM_SECURITY_BYTES+SEED_BYTES)].copy_from_slice(&seed_kem[..SEED_BYTES]);
@@ -54,17 +57,14 @@ pub fn crypto_kem_enc(c_kem : &mut [u8], k : &mut [u8], ek_kem : &[u8], ctx: &mu
     
     symmetric::prng_get_bytes(ctx, &mut m);
     symmetric::prng_get_bytes(ctx, &mut c_kem_t.salt);
-    eprintln!("m: {}", hex::encode(&m));
-    eprintln!("salt: {}", hex::encode(&c_kem_t.salt));
+
 
 
     let ek_kem_array = ek_kem.try_into().unwrap();
     symmetric::hash_h(&mut hash_ek_kem, ek_kem_array);
-    eprintln!("hash_ek_kem: {}", hex::encode(&hash_ek_kem));
 
     symmetric::hash_g(&mut k_theta, &hash_ek_kem, &m, &c_kem_t.salt);
     theta[0..SEED_BYTES].copy_from_slice(&k_theta[SHARED_SECRET_BYTES..SHARED_SECRET_BYTES+SEED_BYTES]);
-    eprintln!("theta: {}", hex::encode(&theta));
 
     let m_array = unsafe{
         std::slice::from_raw_parts(m.as_ptr() as *const u64, PARAM_SECURITY_BYTES/8)
@@ -147,7 +147,7 @@ pub fn crypto_kem_dec(k_prime: &mut [u8], c_kem : &[u8], dk_kem: &[u8]){
     result |= vector::vect_compare(c_kem_t_u_bytes, c_kem_prime_t_u_bytes, VEC_N_SIZE_BYTES);
     result |= vector::vect_compare(c_kem_t_v_bytes, c_kem_prime_t_v_bytes, VEC_N1N2_SIZE_BYTES);
     result |= vector::vect_compare(&c_kem_t.salt, &c_kem_prime_t.salt, SALT_BYTES);
-    result -= 1;
+    result = result.wrapping_sub(1);
 
     for i in 0..SHARED_SECRET_BYTES{
         k_prime[i] = (k_prime[i] & result) ^ (k_bar[i] & !result);

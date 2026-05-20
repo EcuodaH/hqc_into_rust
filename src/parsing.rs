@@ -18,7 +18,7 @@ pub fn hqc_ek_pke_from_string(h: &mut [u64], s: &mut [u64], ek_pke: &[u8]) {
 }
 
 pub fn hqc_dk_pke_from_string(y: &mut [u64], dk_pke: &[u8]) {
-    let dk_xof_ctx = symmetric::xof_init(dk_pke);
+    let dk_xof_ctx = symmetric::xof_init(&dk_pke[..SEED_BYTES]);
     let mut dk_reader = dk_xof_ctx.finalize_xof();
     vector::vect_sample_fixed_weight1(&mut dk_reader, y, PARAM_OMEGA);
     drop(dk_reader);
@@ -38,19 +38,12 @@ pub fn hqc_c_kem_to_string(ct: &mut [u8], c_kem: &CiphertextKem){
 
 
 pub fn hqc_c_kem_from_string(c_pke: &mut CiphertextPke, salt: &mut [u8], ct: &[u8]){
-    let u_bytes = &ct[0..VEC_N_SIZE_BYTES];
+    unsafe {
+        let u_dst = std::slice::from_raw_parts_mut(c_pke.u.as_mut_ptr() as *mut u8, VEC_N_SIZE_BYTES);
+        u_dst.copy_from_slice(&ct[0..VEC_N_SIZE_BYTES]);
 
-    let v_bytes = &ct[VEC_N_SIZE_BYTES..VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES];
-
-
-    let u_bytes_64 = unsafe{
-        std::slice::from_raw_parts(u_bytes.as_ptr() as *const u64, VEC_N_SIZE_BYTES/8)
-    };
-
-    let v_bytes_64 = unsafe{
-        std::slice::from_raw_parts(v_bytes.as_ptr() as *const u64, VEC_N1N2_SIZE_BYTES/8)
-    };
-    c_pke.u[0..VEC_N_SIZE_64].copy_from_slice(&u_bytes_64[..VEC_N_SIZE_64]);
-    c_pke.v[0..VEC_N1N2_SIZE_64].copy_from_slice(&v_bytes_64[..VEC_N1N2_SIZE_64]);
+        let v_dst = std::slice::from_raw_parts_mut(c_pke.v.as_mut_ptr() as *mut u8, VEC_N1N2_SIZE_BYTES);
+        v_dst.copy_from_slice(&ct[VEC_N_SIZE_BYTES..VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES]);
+    }
     salt.copy_from_slice(&ct[(VEC_N_SIZE_BYTES+VEC_N1N2_SIZE_BYTES)..(VEC_N_SIZE_BYTES+VEC_N1N2_SIZE_BYTES+SALT_BYTES)]);
 }

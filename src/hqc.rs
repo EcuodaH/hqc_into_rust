@@ -25,6 +25,7 @@ pub(crate) fn hqc_pke_keygen(ek_pke: &mut [u8], dk_pke: &mut [u8], seed: &[u8]){
     let seed_ek = &keypair_seed[SEED_BYTES..];
 
 
+
     let dk_xof_ctx = symmetric::xof_init(seed_dk);
     let ek_xof_ctx = symmetric::xof_init(seed_ek);
     let mut dk_reader = dk_xof_ctx.finalize_xof();
@@ -34,6 +35,7 @@ pub(crate) fn hqc_pke_keygen(ek_pke: &mut [u8], dk_pke: &mut [u8], seed: &[u8]){
 
     //calcule la clé publique
     vector::vect_set_random(&mut ek_reader, &mut h);
+    
     gf2x::vect_mul(&mut s, &y, &h);
     let s_copy = s.clone();
     vector::vect_add(&mut s, &x, &s_copy, VEC_N_SIZE_64);
@@ -44,6 +46,7 @@ pub(crate) fn hqc_pke_keygen(ek_pke: &mut [u8], dk_pke: &mut [u8], seed: &[u8]){
     };
     ek_pke[SEED_BYTES..SEED_BYTES + VEC_N_SIZE_BYTES].copy_from_slice(s_bytes);
     dk_pke[..SEED_BYTES].copy_from_slice(seed_dk);
+
 
     keypair_seed.zeroize();
     x.zeroize();
@@ -64,14 +67,19 @@ pub(crate) fn hqc_pke_encrypt(c_pke: &mut data_structures::CiphertextPke, ek_pke
     let mut theta_reader = theta_xof_ctx.finalize_xof();
 
     parsing::hqc_ek_pke_from_string(&mut h, &mut s, ek_pke);
-    vector::vect_sample_fixed_weight2(&mut theta_reader, &mut r1, PARAM_OMEGA_R);
-    vector::vect_sample_fixed_weight2(&mut theta_reader, &mut e, PARAM_OMEGA_E);
+
+
+
     vector::vect_sample_fixed_weight2(&mut theta_reader, &mut r2, PARAM_OMEGA_R);
+    vector::vect_sample_fixed_weight2(&mut theta_reader, &mut e, PARAM_OMEGA_E);
+    vector::vect_sample_fixed_weight2(&mut theta_reader, &mut r1, PARAM_OMEGA_R);
+
 
     // u = r2·h + r1
     let mut u_tmp = [0u64; VEC_N_SIZE_64];
     gf2x::vect_mul(&mut u_tmp, &r2, &h);
     vector::vect_add(&mut c_pke.u, &r1, &u_tmp, VEC_N_SIZE_64);
+
 
     // v = encode(m) + truncate(r2·s + e)
     let mut v_encoded = [0u64; VEC_N1N2_SIZE_64];
