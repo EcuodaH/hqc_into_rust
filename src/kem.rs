@@ -54,11 +54,17 @@ pub fn crypto_kem_enc(c_kem : &mut [u8], k : &mut [u8], ek_kem : &[u8], ctx: &mu
     
     symmetric::prng_get_bytes(ctx, &mut m);
     symmetric::prng_get_bytes(ctx, &mut c_kem_t.salt);
+    eprintln!("m: {}", hex::encode(&m));
+    eprintln!("salt: {}", hex::encode(&c_kem_t.salt));
+
 
     let ek_kem_array = ek_kem.try_into().unwrap();
     symmetric::hash_h(&mut hash_ek_kem, ek_kem_array);
+    eprintln!("hash_ek_kem: {}", hex::encode(&hash_ek_kem));
+
     symmetric::hash_g(&mut k_theta, &hash_ek_kem, &m, &c_kem_t.salt);
     theta[0..SEED_BYTES].copy_from_slice(&k_theta[SHARED_SECRET_BYTES..SHARED_SECRET_BYTES+SEED_BYTES]);
+    eprintln!("theta: {}", hex::encode(&theta));
 
     let m_array = unsafe{
         std::slice::from_raw_parts(m.as_ptr() as *const u64, PARAM_SECURITY_BYTES/8)

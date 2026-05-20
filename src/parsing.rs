@@ -7,7 +7,7 @@ use sha3::{Shake256, digest::{Update, ExtendableOutput, XofReader}};
 
 
 pub fn hqc_ek_pke_from_string(h: &mut [u64], s: &mut [u64], ek_pke: &[u8]) {
-    let ek_xof_ctx = symmetric::xof_init(&ek_pke[..SEED_BYTES]);  // ← seulement la seed !
+    let ek_xof_ctx = symmetric::xof_init(&ek_pke[..SEED_BYTES]);  
     let mut ek_reader = ek_xof_ctx.finalize_xof();
     vector::vect_set_random(&mut ek_reader, h);
 
