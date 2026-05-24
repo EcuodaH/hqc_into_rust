@@ -3,7 +3,6 @@ use crate::reed_muller;
 use crate::reed_solomon;
 use zeroize::Zeroize;
 
-
 pub fn code_encode(em: &mut [u64], m: & [u64]){
     let mut tmp = [0u64; VEC_N1_SIZE_64];
 

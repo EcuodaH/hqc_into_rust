@@ -38,7 +38,6 @@ pub fn xof_init(seed: &[u8]) -> sha3::Shake256 {
 pub fn xof_get_bytes(xof_ctx: &mut impl XofReader, output: &mut [u8]){
     xof_ctx.read(output);
 }
-
 pub fn hash_i(output: &mut [u8], seed: &[u8]) {
     let mut ctx = Sha3_512::new();
     Digest::update(&mut ctx, seed);

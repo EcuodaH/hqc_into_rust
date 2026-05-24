@@ -12,3 +12,14 @@ rand = "0.10.1"
 sha3 = "0.10"
 zeroize = "1"
 hex = "0.4"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "hqc_bench"
+harness = false
+
+[profile.release]
+debug = 1  
+inline-threshold = 0

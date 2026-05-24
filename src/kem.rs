@@ -9,7 +9,6 @@ use crate::vector;
 use crate::parsing;
 use crate::data_structures;
 
-
 pub fn crypto_kem_keypair(ek_kem: &mut [u8], dk_kem: &mut [u8], ctx: &mut impl XofReader){
     let mut seed_kem = [0u8; SEED_BYTES];
     let mut sigma = [0u8; PARAM_SECURITY_BYTES];
@@ -78,7 +77,6 @@ pub fn crypto_kem_enc(c_kem : &mut [u8], k : &mut [u8], ek_kem : &[u8], ctx: &mu
     k_theta.zeroize();
     theta.zeroize();
 }
-
 
 pub fn crypto_kem_dec(k_prime: &mut [u8], c_kem : &[u8], dk_kem: &[u8]){
     let mut ek_pke = [0u8; PUBLIC_KEY_BYTES];

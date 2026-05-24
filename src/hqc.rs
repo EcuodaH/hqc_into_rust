@@ -10,7 +10,6 @@ use crate::code;
 use sha3::digest::ExtendableOutput;
 use rand::RngExt;
 
-
 pub(crate) fn hqc_pke_keygen(ek_pke: &mut [u8], dk_pke: &mut [u8], seed: &[u8]){
     let mut keypair_seed = [0u8; 2*SEED_BYTES];
 
