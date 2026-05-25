@@ -1,18 +1,17 @@
 # Rapport de Profiling — HQC-256
 
-**Date :** 2026-05-25  
 **Données :** 100 KATs (Known Answer Tests)
 
 ---
 
-## 1. C'est quoi HQC, en deux mots ?
+## 1. Quelques rappels sur HQC
 
 HQC (Hamming Quasi-Cyclic) est un algorithme de **chiffrement post-quantique** sélectionné par le NIST en 2024.
 L'idée : même un ordinateur quantique ne peut pas casser ce chiffrement.
 
 Il fonctionne comme un KEM (Key Encapsulation Mechanism) : au lieu de chiffrer directement un message,
 on s'en sert pour que deux personnes se mettent d'accord sur une clé secrète partagée de 32 octets,
-sans jamais se la transmettre directement. C'est ce qu'on utilise par exemple dans HTTPS.
+sans jamais se la transmettre directement.
 
 ### Les trois opérations
 
