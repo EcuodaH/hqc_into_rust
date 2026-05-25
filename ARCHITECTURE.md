@@ -48,7 +48,7 @@ Le projet est organisé en deux couches :
 └────────────────┴────────────────┴────────────┘
 ```
 
-La sécurité repose sur le fait qu'il est très difficile (même pour un ordinateur quantique) de décoder un code linéaire aléatoire — c'est le problème QCSD.
+La sécurité repose sur le fait qu'il est très difficile (même pour un ordinateur quantique) de décoder un code linéaire aléatoire — c'est le problème Quasi Cyclic Syndorme Decoding problem.
 
 ---
 
@@ -156,45 +156,19 @@ La comparaison entre les deux chiffrés est faite en **temps constant** pour év
 
 **Fichier :** `src/hqc.rs`
 
-### Génération de clés
+C'est la couche cryptographique réelle, appelée par le KEM. Elle implémente un chiffrement de type "Learning With Errors" adapté aux corps binaires et aux anneaux quasi-cycliques. Elle expose trois fonctions.
 
-```
-(seed_dk ‖ seed_ek) = SHA3-512(seed)
+### `hqc_pke_keygen` — génération de clés
 
-Depuis seed_dk : générer y (épars, poids 66) et x (épars, poids 66)
-Depuis seed_ek : générer h (aléatoire dense)
-s = y·h + x   (multiplication dans GF(2)[X]/(X^N-1))
+À partir d'une graine de 32 octets, cette fonction dérive tout ce dont on a besoin. Elle commence par hacher la graine pour obtenir deux sous-graines indépendantes : une pour la clé privée, une pour la clé publique. Depuis la graine privée, elle génère deux vecteurs épars secrets `x` et `y` (66 bits à 1 chacun sur 17 669). Depuis la graine publique, elle génère un vecteur dense aléatoire `h`. Elle calcule ensuite `s = y·h + x` dans l'anneau GF(2)[X]/(X^N-1).
 
-clé secrète = seed_dk        ← juste 32 octets, y et x sont régénérés à la demande
-clé publique = seed_ek ‖ s
-```
+La clé secrète est simplement la graine privée — 32 octets. `x` et `y` ne sont jamais stockés : ils sont régénérés à la demande depuis cette graine. La clé publique expose `h` et `s`. Retrouver `x` et `y` depuis `(h, s)` est le problème QCSD, supposé infaisable.
 
-La clé secrète ne stocke qu'une graine — les vecteurs secrets y et x sont recalculés au besoin.
+### `hqc_pke_encrypt` — chiffrement
 
-### Chiffrement
+À partir de la clé publique et d'un message de 16 octets, cette fonction produit un chiffré en deux parties `(u, v)`. Elle commence par récupérer `h` et `s` depuis la clé publique, puis génère trois vecteurs épars aléatoires `r1`, `r2`, `e` depuis une graine fournie en paramètre (c'est le `θ` du KEM, ce qui rend le chiffrement déterministe).
 
-```
-Depuis ek, récupérer h et s
-Depuis θ : générer r1, r2, e  (tous épars)
-
-u = r2·h + r1             ← première partie du chiffré
-v = encode(m) + trunc(r2·s + e)   ← deuxième partie
-```
-
-`encode(m)` transforme les 16 octets du message en 17 664 bits via Reed-Solomon puis Reed-Muller.
-
-### Déchiffrement
-
-```
-Régénérer y depuis la clé secrète (seed_dk)
-
-tmp = trunc(y·u)
-v' = v + tmp = encode(m) + bruit résiduel
-
-m = decode(v')    ← le code correcteur retire le bruit
-```
-
-Le bruit résiduel est de poids borné — les paramètres garantissent que le décodage réussit avec probabilité 1 - 2^{-128}.
+La première partie du chiffré est `u = r2·h + r1` — ça ressemble à une clé publique PKE et c'est intentionnel. La deuxième partie est `v = encode(m) + trunc(r2·s + e)` : le message est d'abord encodé avec le code correcteur d'erreurs (Reed-Solomon puis Reed-Muller, 16 octets → 17 664 bits), puis "bruité" en lui ajoutant `r2·s + e`. C'est ce bruit qui sera retiré au déchiffrement.
 
 ---
 
@@ -202,68 +176,75 @@ Le bruit résiduel est de poids borné — les paramètres garantissent que le d
 
 **Fichier :** `src/gf2x.rs`
 
-C'est le **goulot d'étranglement** du projet : environ 98% du temps CPU.
+Module le plus critique en performance : **~98% du temps CPU**. Toutes les multiplications de vecteurs (y·h, r2·s, y·u…) passent par lui.
 
-On travaille dans l'anneau `GF(2)[X] / (X^N − 1)` avec N = 17 669. Les polynômes sont stockés comme des tableaux de 277 mots de 64 bits (277 × 64 = 17 728 bits ⊇ 17 669 bits).
+### Objectif
 
-### `vect_mul(résultat, a, b)`
+Multiplier deux polynômes dans GF(2)[X]/(X^N-1) avec N = 17 669. C'est une multiplication classique de polynômes binaires, suivie d'un "repliement" des coefficients de degré ≥ N vers les degrés bas (puisque X^N ≡ 1). Les polynômes sont stockés en 277 mots de 64 bits.
 
-1. **Multiplication** via l'algorithme de Karatsuba → résultat de longueur 2N
-2. **Réduction modulo X^N − 1** : les coefficients de degré ≥ N se "replient" sur les degrés bas (car X^N ≡ 1)
+### L'algorithme de Karatsuba
 
-### Algorithme de Karatsuba
-
-Au lieu de faire une multiplication naïve en O(n²), Karatsuba divise chaque polynôme en deux moitiés et ne fait que 3 multiplications récursives au lieu de 4.
+Une multiplication naïve coûterait ~312 millions d'opérations — trop lent. Karatsuba divise chaque polynôme en deux moitiés et n'effectue que **3 multiplications récursives au lieu de 4** :
 
 ```
-A × B = A_bas·B_bas  +  X^{2m}·(A_haut·B_haut)  +  X^m·[...]
+            A  =  A_haut · X^m  +  A_bas         (chaque moitié = m mots)
+            B  =  B_haut · X^m  +  B_bas
+
+  A × B  =  P1 · X^(2m)  +  P3 · X^m  +  P2
+
+  avec :  P1 = A_haut × B_haut       
+          P2 = A_bas  × B_bas        
+          P3 = (A_haut + A_bas) × (B_haut + B_bas)  −  P1  −  P2
 ```
 
-Complexité : O(n^1.585) au lieu de O(n²). La récursion s'arrête quand n ≤ 16 et bascule sur la multiplication naïve (`schoolbook_mul`).
+Le "+ P1 + P2" final permet de récupérer le terme croisé sans le calculer directement — c'est l'astuce de Karatsuba. Complexité : **O(n^1.585) au lieu de O(n²)**.
+
+La récursion s'arrête quand les blocs font ≤ 16 mots, et bascule sur `schoolbook_mul` (multiplication naïve, plus rapide à cette taille) :
+
+```
+karatsuba_mul(277)
+  ├─ karatsuba_mul(139)
+  │    ├─ karatsuba_mul(70)
+  │    │    ├─ karatsuba_mul(35)
+  │    │    │    └─ ... → schoolbook_mul (≤16)
+  │    │    └─ ...
+  │    └─ ...
+  └─ ...
+```
+
 
 ---
-
 ## 7. Les vecteurs épars
 
 **Fichier :** `src/vector.rs`
 
-Les vecteurs secrets (x, y, r1, r2, e) ont très peu de bits à 1 : par exemple, 66 bits à 1 sur 17 669. C'est ce qui rend le problème QCSD difficile.
-
-Ils sont stockés en format dense (tableaux de u64), mais générés via leur **support** (la liste des positions des bits à 1).
-
-### Génération par rejet (`vect_generate_random_support1`)
+Les vecteurs secrets et de bruit (x, y, r1, r2, e) ont **très peu de bits à 1** :
 
 ```
-Tirer 3 octets aléatoires → entier 24 bits
-Si la valeur dépasse le seuil (16 767 881) : recommencer
-Sinon : réduire modulo N via Barrett → position valide
-Vérifier qu'elle n'est pas déjà prise
+x, y         →  66 bits à 1 sur 17 669  (poids OMEGA)
+r1, r2, e    →  75 bits à 1 sur 17 669  (poids OMEGA_R / OMEGA_E)
 ```
 
-### Génération Fisher-Yates (`vect_generate_random_support2`)
+C'est ce faible poids de Hamming qui rend le problème QCSD difficile.
 
-Méthode plus rapide utilisée pour r1, r2, e :
+### Comment ils sont générés
 
-```
-Pour i de 0 à poids :
-    support[i] = i + (aléatoire × (N - i)) >> 32
-```
+On génère d'abord le **support** (liste des positions des bits à 1), puis on construit le vecteur dense. Deux méthodes selon l'usage :
 
-### `barrett_reduce` — réduction modulaire rapide
+| Fonction | Utilisée pour | Méthode |
+|----------|--------------|---------|
+| `vect_generate_random_support1` | clés secrètes x, y | Tirage + rejet (évite le biais statistique) |
+| `vect_generate_random_support2` | r1, r2, e | Fisher-Yates (unicité par construction, plus rapide) |
 
-Division par N sans instruction de division, par approximation entière :
+### Barrett reduce
 
-```
-q = (x × 243079) >> 32
-r = x - q × N
-Si r ≥ N : r -= N
-```
+Pour ramener une position aléatoire dans [0, N-1], il faut calculer `x mod N`. L'instruction matérielle de division est lente, donc on utilise Barrett : une multiplication + un décalage de bits avec une constante précalculée (243 079 = ⌊2³²/N⌋). C'est une optimisation classique en crypto embarquée.
 
-### Autres opérations sur les vecteurs
+### Autres opérations
 
-- `vect_add` : XOR mot par mot (addition dans GF(2))
-- `vect_compare` : comparaison en temps constant
-- `vect_truncate` : efface les bits au-delà de N1×N2 = 17 664
+- `vect_add` — addition dans GF(2) = XOR bit à bit
+- `vect_compare` — comparaison en temps constant (anti-timing-attack)
+- `vect_truncate` — efface les bits au-delà de N1×N2 = 17 664
 
 ---
 
@@ -271,49 +252,62 @@ Si r ≥ N : r -= N
 
 **Fichiers :** `src/code.rs`, `src/reed_solomon.rs`, `src/reed_muller.rs`, `src/fft.rs`, `src/gf.rs`
 
-HQC ajoute intentionnellement du bruit lors du chiffrement. Le code correcteur d'erreurs est là pour le retirer lors du déchiffrement.
+HQC ajoute intentionnellement du bruit au chiffrement (r1, r2, e) pour la sécurité. Le code correcteur d'erreurs sert à éliminer ce bruit au déchiffrement.
 
-### Schéma général (code concaténé)
+### Vue d'ensemble : code concaténé
 
 ```
-Message : 16 octets
-    ↓  Reed-Solomon RS(46, 16, 15)  — ajoute de la redondance au niveau octet
-Mot de code : 46 octets
-    ↓  Reed-Muller RM(1, 7) × 3    — chaque octet devient 384 bits (3 copies de 128 bits)
-Vecteur final : 46 × 384 = 17 664 bits
+Message       :  16 octets
+    │
+    │  Reed-Solomon  RS(46, 16)
+    ↓  (ajoute redondance octet par octet)
+RS codeword   :  46 octets
+    │
+    │  Reed-Muller   RM(1,7) × 3 copies
+    ↓  (1 octet → 128 bits, répété 3 fois = 384 bits)
+Vecteur final :  46 × 384 = 17 664 bits
 ```
 
-Au déchiffrement, on fait l'inverse : Reed-Muller corrige les erreurs bit à bit, Reed-Solomon corrige les erreurs résiduelles octet par octet.
+**Au déchiffrement** : RM corrige d'abord les erreurs bit à bit, puis RS rattrape les octets que RM n'a pas réussi à décoder.
 
 ### Reed-Muller `src/reed_muller.rs`
 
-Encode un octet (8 bits) en 128 bits. Peut corriger jusqu'à 31 erreurs sur ces 128 bits. Chaque mot de code est répété 3 fois (`MULTIPLICITY = 3`) pour renforcer la robustesse.
+Encode 1 octet (8 bits) → 128 bits, répété 3 fois (`MULTIPLICITY = 3`). Corrige jusqu'à 31 erreurs sur 128 bits.
 
 Décodage en 3 étapes :
-1. Additionner les 3 copies pour cumuler les "votes"
-2. Appliquer la Transformée de Walsh-Hadamard (WHT)
-3. Chercher le maximum → c'est l'octet décodé
+
+```
+3 copies bruitées  ──> somme des votes  ──> Hadamard  ──>  argmax  =  octet décodé
+   (3×128 bits)         (128 valeurs)         (128 valeurs)
+```
+
+L'astuce : la Hadamard transforme le problème de décodage en une simple recherche du maximum.
 
 ### Reed-Solomon `src/reed_solomon.rs`
 
-Code RS(46, 16, 15) sur GF(2^8). Corrige jusqu'à 15 octets erronés sur 46.
+Code RS(46, 16) sur GF(2⁸). Corrige jusqu'à **15 octets erronés sur 46**.
 
-Décodage en 6 étapes :
-1. Calculer les syndromes (détecter les erreurs)
-2. Algorithme de Berlekamp-Massey (trouver les positions d'erreurs)
-3. FFT de Chien Search (trouver les racines)
-4. Calculer le polynôme évaluateur
-5. Formule de Forney (valeurs des erreurs)
-6. Corriger le mot de code
+Pipeline de décodage en 6 étapes :
+
+```
+1. compute_syndromes      → détecte qu'il y a des erreurs
+2. compute_elp            → polynôme localisateur Λ(X)
+3. compute_roots          → racines de Λ = positions des erreurs
+4. compute_z_poly         → polynôme évaluateur Z(X)
+5. compute_error_values   → valeurs des erreurs
+6. correct_errors         → XOR les corrections au codeword
+```
 
 ### FFT additive `src/fft.rs`
 
-Utilisée par Reed-Solomon pour évaluer des polynômes efficacement sur tout GF(2^8). C'est une FFT adaptée aux corps de caractéristique 2.
+Évalue un polynôme en tous les éléments de GF(2⁸) en O(n log n) au lieu de O(n²). C'est une FFT adaptée aux corps de caractéristique 2 (contrairement à la FFT classique).
 
-### Arithmétique GF(2^8) `src/gf.rs`
+### Arithmétique GF(2⁸) `src/gf.rs` et `src/tables.rs`
 
-- Polynôme irréductible : X^8 + X^4 + X^3 + X + 1
-- Multiplication et inverse via tables de logarithmes précalculées (O(1))
+GF(2⁸) = les 256 valeurs possibles d'un octet, avec :
+- **Addition** : XOR
+- **Multiplication** : modulo le polynôme irréductible `X⁸ + X⁴ + X³ + X + 1`
+- **Inverse** : via tables de log/antilog précalculées → opération en O(1)
 
 ---
 
@@ -321,18 +315,20 @@ Utilisée par Reed-Solomon pour évaluer des polynômes efficacement sur tout GF
 
 **Fichier :** `src/symmetric.rs`
 
-Tout le code cryptographique utilise la famille **SHA3** (crate `sha3`).
+Tout le projet utilise la famille **SHA3** (norme NIST post-quantique). Deux usages :
+- **Sortie fixe** : SHA3-256 (32 o), SHA3-512 (64 o)
+- **Sortie extensible** (XOF) : SHAKE256, produit autant d'octets qu'on veut — pratique pour générer des vecteurs de taille arbitraire
 
 | Fonction | Algorithme | Rôle |
 |----------|-----------|------|
-| `prng_init` / `prng_get_bytes` | SHAKE256 | Générateur pseudo-aléatoire pour les KATs |
-| `xof_init` / `xof_get_bytes` | SHAKE256 | Génère les vecteurs épars (r1, r2, e, h, x, y) |
-| `hash_h` | SHA3-256 | Hache la clé publique |
-| `hash_g` | SHA3-512 | Dérive le secret partagé K et la graine de chiffrement θ |
-| `hash_i` | SHA3-512 | Dérive les graines de clé privée/publique PKE |
-| `hash_j` | SHA3-256 | Calcule la valeur de repli K̄ (cas d'attaque) |
+| `prng_init` / `prng_get_bytes` | SHAKE256 | PRNG déterministe pour les KATs |
+| `xof_init` / `xof_get_bytes` | SHAKE256 | Génère les vecteurs (x, y, h, r1, r2, e) depuis leurs graines |
+| `hash_h` | SHA3-256 | Hache la clé publique (utilisé partout ensuite) |
+| `hash_g` | SHA3-512 | Dérive K + θ en un seul appel (les 64 octets coupés en deux) |
+| `hash_i` | SHA3-512 | Dérive seed_dk + seed_ek depuis seed_pke |
+| `hash_j` | SHA3-256 | Calcule la valeur de repli K̄ (FO) |
 
-Chaque fonction utilise un **octet de domaine** différent (0–3) pour éviter qu'un hash calculé dans un contexte soit réutilisable dans un autre.
+**Séparation de domaine** : chaque fonction ajoute un octet de domaine différent (0–3) à son entrée. Un hash calculé dans un contexte ne peut donc pas être réutilisé dans un autre, même à entrées identiques.
 
 ---
 
@@ -341,25 +337,22 @@ Chaque fonction utilise un **octet de domaine** différent (0–3) pour éviter 
 **Fichier :** `src/data_structures.rs`
 
 ```rust
-// Le chiffré PKE = (u, v)
 struct CiphertextPke {
-    u: [u64; 277],   // vecteur de N bits (partie "clé publique du chiffré")
-    v: [u64; 276],   // vecteur de N1×N2 bits (message encodé + bruit)
+    u: [u64; 277],   // N bits (la "partie publique" du chiffré)
+    v: [u64; 276],   // N1×N2 bits (message encodé + bruit)
 }
 
-// Le chiffré KEM = chiffré PKE + sel
 struct CiphertextKem {
     c_pke: CiphertextPke,
-    salt: [u8; 16],  // sel pour la sécurité multi-utilisateurs
+    salt: [u8; 16],  // sel anti-collision multi-utilisateurs
 }
 
-// Un mot de code Reed-Muller = 128 bits
 struct RmCodeword {
-    u32: [u32; 4],
+    u32: [u32; 4],   // 128 bits = 1 mot de code Reed-Muller
 }
 ```
 
-Les vecteurs de taille N sont stockés en mots de 64 bits. Les quelques bits superflus (277×64 - 17669 = 59 bits) sont masqués explicitement.
+Les vecteurs de taille N occupent 277 mots de 64 bits (= 17 728 bits), soit 59 bits de trop. Ces bits superflus sont toujours masqués à zéro — un oubli produit des multiplications fausses.
 
 ---
 
@@ -367,24 +360,24 @@ Les vecteurs de taille N sont stockés en mots de 64 bits. Les quelques bits sup
 
 **Fichier :** `src/parsing.rs`
 
-Les clés et chiffrés sont convertis en tableaux d'octets pour être stockés ou échangés :
+Conversion des structures Rust vers/depuis des tableaux d'octets pour stockage et transmission :
 
 ```
-clé_publique_PKE  = seed_ek (32 o) ‖ s en octets (2209 o)
-clé_privée_PKE    = seed_dk (32 o)
-
-clé_secrète_KEM   = clé_pub_PKE ‖ clé_priv_PKE ‖ σ (16 o) ‖ seed_kem (32 o)
-
-chiffré           = u (2209 o) ‖ v (2208 o) ‖ salt (16 o)
+ek_pke      =  seed_ek (32 o)  ‖  s en octets (2209 o)             →  2241 o
+dk_pke      =  seed_dk (32 o)                                       →    32 o
+dk_kem      =  ek_pke  ‖  dk_pke  ‖  σ (16 o)  ‖  seed_kem (32 o)  →  2321 o
+ct          =  u (2209 o)  ‖  v (2208 o)  ‖  salt (16 o)            →  4433 o
 ```
 
-La conversion octets ↔ mots u64 se fait via `std::slice::from_raw_parts` (zero-copy sur x86-64 little-endian).
+La conversion octets ↔ u64 utilise `std::slice::from_raw_parts` — pas de copie, on réinterprète directement la mémoire. Valide sur x86-64 (little-endian), non portable sur big-endian.
 
 ---
 
 ## 12. Ce qui se passe étape par étape
 
-### Génération de clés (`keypair`)
+Enchaînement complet des appels, de l'interface publique aux opérations bas niveau.
+
+### Génération de clés
 
 ```
 crypto_kem_keypair
@@ -392,69 +385,66 @@ crypto_kem_keypair
   ├─ SHAKE256(seed_kem) → seed_pke, σ
   └─ hqc_pke_keygen(seed_pke)
        ├─ SHA3-512 → seed_dk, seed_ek
-       ├─ SHAKE256(seed_dk) → y, x  (vecteurs épars secrets)
-       ├─ SHAKE256(seed_ek) → h     (vecteur dense public)
-       ├─ vect_mul(y, h)            ← ~98% du temps CPU (Karatsuba)
+       ├─ SHAKE256(seed_dk) → y, x  (épars)
+       ├─ SHAKE256(seed_ek) → h     (dense)
+       ├─ vect_mul(y, h)            ← ~98% du temps CPU
        └─ s = y·h + x
 ```
 
-### Encapsulation (`enc`)
+### Encapsulation
 
 ```
 crypto_kem_enc
   ├─ PRNG → m, salt
-  ├─ SHA3-256(ek) → H
-  ├─ SHA3-512(H, m, salt) → K, θ
+  ├─ SHA3-256(ek)             → H
+  ├─ SHA3-512(H, m, salt)     → K, θ
   └─ hqc_pke_encrypt(ek, m, θ)
-       ├─ SHAKE256(θ) → r2, e, r1  (vecteurs épars)
+       ├─ SHAKE256(θ)         → r2, e, r1
        ├─ u = r2·h + r1
-       ├─ code_encode(m)            (RS + RM : 16 o → 17664 bits)
+       ├─ code_encode(m)      (RS + RM : 16 o → 17664 bits)
        └─ v = encode(m) + trunc(r2·s + e)
 ```
 
-### Décapsulation (`dec`)
+### Décapsulation
 
 ```
 crypto_kem_dec
-  ├─ hqc_pke_decrypt
+  ├─ hqc_pke_decrypt(c, dk_pke)
   │    ├─ régénérer y depuis seed_dk
   │    ├─ tmp = trunc(y·u)
-  │    ├─ v' = v + tmp  (= encode(m) + bruit)
-  │    └─ code_decode(v') → m'   (RM puis RS)
-  ├─ re-chiffrer m' pour obtenir c'
-  ├─ comparer c == c' en temps constant
-  └─ retourner K' (succès) ou K̄ (échec)
+  │    ├─ v' = v + tmp        (= encode(m) + bruit borné)
+  │    └─ code_decode(v')     → m'  (RM puis RS)
+  ├─ recalculer H, K', θ'
+  ├─ hqc_pke_encrypt(ek, m', θ')  → c'    ← re-chiffrement (FO)
+  ├─ compare(c, c') en temps constant
+  └─ retourne K' si c==c', sinon K̄
 ```
 
 ---
 
 ## 13. Choix techniques Rust
 
-### `inline-threshold = 0` dans Cargo.toml
+### `[inline(never)]` pour les fonctions
 
-Désactive l'inlining automatique. Chaque appel de fonction reste visible dans les outils de profiling (callgrind, perf). À supprimer en production pour laisser LLVM optimiser.
+En temps normal, le compilateur Rust (LLVM) copie le code des petites fonctions directement à leurs sites d'appel pour éviter le coût du `call`. C'est efficace, mais ça rend le profiling illisible : les outils comme callgrind voient un gros bloc de code sans pouvoir distinguer quelle fonction fait quoi. Désactiver l'inlining sacrifie un peu de performance mais rend le profiling précis. Cette option doit être retirée pour une version de production.
 
 ### `unsafe` et zero-copy
 
-`std::slice::from_raw_parts` est utilisé pour interpréter des `[u8]` en `[u64]` sans copie. C'est valide sur x86-64 (little-endian), mais non portable sur les architectures big-endian.
+Rust interdit normalement de réinterpréter un tableau d'octets comme un tableau de u64 — les types sont différents. Il faut utiliser `std::slice::from_raw_parts`, marqué `unsafe`, pour dire au compilateur qu'on sait ce qu'on fait. C'est correct sur x86-64 parce que cette architecture est little-endian et tolère les accès non-alignés, mais ce serait un comportement indéfini sur certaines architectures embarquées.
 
 ### `zeroize`
 
-Les données secrètes (clés, seeds, messages) sont effacées de la mémoire après usage. Sans ça, les valeurs pourraient être récupérées depuis un dump mémoire.
+Après usage, les données secrètes (graines, clés, message interne `m`) sont explicitement écrasées en mémoire via la crate `zeroize`. Sans ça, ces valeurs restent dans la mémoire du processus et pourraient être lues depuis un fichier de dump ou via une attaque heap spray. C'est une précaution standard en cryptographie.
 
 ### Temps-constant
 
-Les comparaisons critiques utilisent des masques binaires au lieu de branchements `if`. Cela évite les attaques par timing, où un attaquant mesurerait le temps d'exécution pour deviner des bits secrets.
+En Rust (comme en C), un `if` peut s'exécuter plus ou moins vite selon la branche prise. Un attaquant qui mesure le temps d'exécution peut parfois en déduire le résultat d'une comparaison — c'est une attaque par timing. Pour y résister, les comparaisons critiques utilisent des masques binaires et des opérations arithmétiques qui prennent toujours le même temps, quelle que soit la valeur des données.
+Pour plus d'information sur le temps constant dans HQC voir la section concernée dans le README.md
 
 ### `wrapping_sub`
 
-Les soustractions qui "wrappent" (0 - 1 = 255 sur u8) sont explicites en Rust avec `wrapping_sub()`, contrairement au C où c'est silencieux. Cela rend l'intention claire et évite les panics en mode debug.
+En C, `0 - 1` sur un entier non signé vaut 255 (le comportement wrap est défini). En Rust, la même opération provoque un panic en mode debug. Pour reproduire fidèlement le comportement C (voulu ici, car c'est un masque cryptographique), on utilise `wrapping_sub(1)`. Ça rend l'intention explicite et évite les surprises lors du portage.
 
 ### Tests
 
-Chaque module contient des tests unitaires (`#[cfg(test)]`) :
-- Propriétés algébriques : `X × X^{N-1} = 1` dans l'anneau
-- Aller-retour : `decode(encode(m)) = m` pour RM et RS
-- Poids de Hamming exact des vecteurs épars générés
-- Réduction Barrett correcte
-- 100 vecteurs KAT officiels NIST (tests d'intégration complets)
+Chaque module contient ses propres tests unitaires vérifiés à chaque compilation. Les tests algébriques vérifient que les propriétés mathématiques tiennent (par exemple que multiplier X^{N-1} par X donne bien 1 dans l'anneau). Les tests de round-trip vérifient que `decode(encode(m)) = m` pour Reed-Muller et Reed-Solomon. Des tests de distribution vérifient que les vecteurs épars générés ont exactement le bon poids. Et les 100 vecteurs KAT servent de test d'intégration complet — si une seule valeur diverge du fichier de référence, le test échoue.
