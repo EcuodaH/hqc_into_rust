@@ -1,9 +1,7 @@
 # Rapport de Profiling — HQC-256
 
 **Date :** 2026-05-25  
-**Implémentation :** Rust, mode release (`inline-threshold=0`)  
-**Environnement :** Linux x86-64  
-**Données :** 100 KATs (Known Answer Tests) officiels NIST
+**Données :** 100 KATs (Known Answer Tests)
 
 ---
 
@@ -12,8 +10,8 @@
 HQC (Hamming Quasi-Cyclic) est un algorithme de **chiffrement post-quantique** sélectionné par le NIST en 2024.
 L'idée : même un ordinateur quantique ne peut pas casser ce chiffrement.
 
-Il fonctionne comme un **KEM** (Key Encapsulation Mechanism) : au lieu de chiffrer directement un message,
-on s'en sert pour que deux personnes se mettent d'accord sur une **clé secrète partagée** de 32 octets,
+Il fonctionne comme un KEM (Key Encapsulation Mechanism) : au lieu de chiffrer directement un message,
+on s'en sert pour que deux personnes se mettent d'accord sur une clé secrète partagée de 32 octets,
 sans jamais se la transmettre directement. C'est ce qu'on utilise par exemple dans HTTPS.
 
 ### Les trois opérations
@@ -81,9 +79,8 @@ de la multiplication de polynômes (Karatsuba).
 
 Quand on profile avec callgrind (comptage d'instructions CPU), **~98 % des instructions** sont
 exécutées dans `gf2x::karatsuba_mul` et `gf2x::schoolbook_mul`.
-
-**Pourquoi ?** HQC repose sur des multiplications de polynômes dans l'anneau GF(2)[X]/(X^N − 1)
-où N = 17 669. Multiplier deux polynômes de degré ~17 000 est intrinsèquement coûteux.
+Cela vient du fait que HQC repose sur des multiplications de polynômes dans l'anneau GF(2)[X]/(X^N − 1)
+avec N = 17 669. Multiplier deux polynômes de degré ~17 000 est intrinsèquement coûteux.
 
 L'algorithme de Karatsuba divise le problème en 3 sous-problèmes de taille moitié au lieu de 4
 (multiplication naïve). Sur de grands polynômes, c'est un gain majeur.
