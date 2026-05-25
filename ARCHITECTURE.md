@@ -1,8 +1,7 @@
 # Architecture du projet HQC — Documentation détaillée
 
-**Version :** HQC-256 (paramètres NIST niveau 5)  
-**Langage :** Rust 2024 edition  
-**Standard :** NIST FIPS en cours de finalisation (sélectionné 2024)
+**Version :** HQC-256
+**Langage :** Rust 2024 
 
 ---
 
@@ -108,16 +107,13 @@ hqc/
 │   ├── tables.rs         — tables de log/antilog GF(2^8)
 │   │
 │   ├── symmetric.rs      — SHA3-256/512, SHAKE256, fonctions de domaine
-│   ├── parsing.rs        — sérialisation/désérialisation clés et chiffrés
-│   │
-│   └── bin/
-│       └── profile_kats.rs — binaire de profiling (timing + callgrind)
+│   └── parsing.rs        — sérialisation/désérialisation clés et chiffrés
 │
 ├── tests/
-│   └── PQCkemKAT_2321.rsp — 100 vecteurs KAT officiels NIST
-├── benches/
-│   └── hqc_bench.rs       — benchmarks Criterion
-├── profile.py             — script Python de profiling complet
+│   ├── kats.rs - Test des Kats
+│   ├── prng_tests.rs - Test unitaire de prng
+│   ├── PQCkemKAT_2321.req (ASK)
+│   └── PQCkemKAT_2321.rsp — 100 vecteurs KAT (Avec réponses, seul utile dans le projet)
 └── Cargo.toml
 ```
 
@@ -127,8 +123,7 @@ hqc/
 
 **Fichier :** `src/kem.rs`
 
-C'est la seule interface que les utilisateurs finaux appellent. Elle implémente
-la **transform Fujisaki-Okamoto (FO)** qui élève le PKE sous-jacent (IND-CPA) en KEM (IND-CCA2).
+C'est la seule interface que les utilisateurs finaux appellent. Elle élève le PKE sous-jacent en KEM.
 
 ### 4.1 `crypto_kem_keypair(ek_kem, dk_kem, ctx)`
 
@@ -164,14 +159,14 @@ Extraire c, salt depuis ct
 m' = hqc_pke_decrypt(dk_pke, c)
 H  = SHA3-256(ek)
 (K' ‖ θ') = SHA3-512(H ‖ m' ‖ salt)
-c'  = hqc_pke_encrypt(ek, m', θ')       ← ré-encryption !
+c'  = hqc_pke_encrypt(ek, m', θ')       ← ré-encryption
 K̄  = SHA3-256(H ‖ σ ‖ c ‖ salt)        ← valeur de repli
 
 ss = K'  si c == c'                      ← comparaison temps-constant
      K̄   sinon
 ```
 
-La ré-encryption est la clé de la sécurité IND-CCA2 : si l'attaquant modifie `c`,
+La ré-encryption est la clé de la sécurité : si l'attaquant modifie `c`,
 la comparaison échoue et il reçoit une valeur aléatoire `K̄` sans information.
 
 ---
