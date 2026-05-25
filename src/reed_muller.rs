@@ -70,6 +70,7 @@ fn find_peaks(transform : &mut [i16; 128]) -> i32{
     peak_pos
 }
 
+#[cfg_attr(feature = "profiling", inline(never))]
 pub fn reed_muller_encode(cdw:&mut [u64], msg: & [u64]){
     let message_array = unsafe {
         std::slice::from_raw_parts(msg.as_ptr() as *const u8, VEC_N1_SIZE_BYTES)

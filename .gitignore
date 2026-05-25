@@ -1,1 +1,16 @@
+# Build
 /target
+*.py
+
+# Profiling — outputs générés, pas à versionner
+/profiling_results/
+*.out
+*.svg
+*.dot
+*.json.gz
+
+# Fichiers perf/flamegraph
+flamegraph.svg
+perf.data
+perf.data.old
+massif.out.*

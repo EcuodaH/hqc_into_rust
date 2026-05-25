@@ -7,6 +7,9 @@ edition = "2024"
 name = "hqc"
 path = "src/lib.rs"
 
+[features]
+profiling = []  # active les #[inline(never)] pour callgrind
+
 [dependencies]
 rand = "0.10.1"
 sha3 = "0.10"
@@ -21,5 +24,9 @@ name = "hqc_bench"
 harness = false
 
 [profile.release]
-debug = 1  
+debug = 1
 inline-threshold = 0
+
+[profile.release-opt]
+inherits = "release"
+inline-threshold = 275   # seuil par défaut LLVM

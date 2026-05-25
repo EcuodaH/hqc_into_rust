@@ -10,7 +10,7 @@ use crate::code;
 use sha3::digest::ExtendableOutput;
 use rand::RngExt;
 
-pub(crate) fn hqc_pke_keygen(ek_pke: &mut [u8], dk_pke: &mut [u8], seed: &[u8]){
+pub fn hqc_pke_keygen(ek_pke: &mut [u8], dk_pke: &mut [u8], seed: &[u8]){
     let mut keypair_seed = [0u8; 2*SEED_BYTES];
 
     let mut x = [0u64; VEC_N_SIZE_64];
@@ -54,7 +54,7 @@ pub(crate) fn hqc_pke_keygen(ek_pke: &mut [u8], dk_pke: &mut [u8], seed: &[u8]){
     drop(ek_reader);
 }
 
-pub(crate) fn hqc_pke_encrypt(c_pke: &mut data_structures::CiphertextPke, ek_pke: &[u8], m: &[u64], theta: &[u8]){
+pub fn hqc_pke_encrypt(c_pke: &mut data_structures::CiphertextPke, ek_pke: &[u8], m: &[u64], theta: &[u8]){
     let mut h = [0u64;VEC_N_SIZE_64];
     let mut s = [0u64;VEC_N_SIZE_64];
     let mut r1 = [0u64;VEC_N_SIZE_64];
@@ -96,7 +96,8 @@ pub(crate) fn hqc_pke_encrypt(c_pke: &mut data_structures::CiphertextPke, ek_pke
     drop(theta_reader);
 }
 
-pub(crate) fn hqc_pke_decrypt(m: &mut [u64], dk_pke: &[u8], c_pke: &data_structures::CiphertextPke){
+#[cfg_attr(feature = "profiling", inline(never))]
+pub fn hqc_pke_decrypt(m: &mut [u64], dk_pke: &[u8], c_pke: &data_structures::CiphertextPke){
     let mut y= [0u64; VEC_N_SIZE_64];
     let mut tmp1= [0u64; VEC_N_SIZE_64];
     let mut tmp2= [0u64; VEC_N1N2_SIZE_64];

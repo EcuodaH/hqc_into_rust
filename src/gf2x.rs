@@ -4,6 +4,7 @@ pub const KARATSUBA_THRESHOLD: u64 = 16;
 pub const TMP_BUFFER_WORDS: usize = 16 * VEC_N_SIZE_64;
 
 //multiplication de 2 vecteurs sur GF(2) : calcule r = a * b où a, b sont de len n, r résultat de taille 2*n
+#[cfg_attr(feature = "profiling", inline(never))]
 fn schoolbook_mul(r: &mut [u64], a: &[u64], b: &[u64], n: usize){
     r.fill(0);
     for i in 0..n {
@@ -74,6 +75,8 @@ fn reduce(o: &mut [u64], a: &[u64]){
     o[VEC_N_SIZE_64 -1] &= bitmask(PARAM_N, 64);
 }
 
+
+#[cfg_attr(feature = "profiling", inline(never))]
 pub fn vect_mul(o: &mut [u64], a1 : &[u64], a2 : &[u64]){
     let mut unreduced  = [0u64; 2 * VEC_N_SIZE_64];
     let mut tmp_buffer  = [0u64; TMP_BUFFER_WORDS];

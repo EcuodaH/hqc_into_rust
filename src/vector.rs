@@ -121,6 +121,7 @@ pub fn vect_set_random(ctx: &mut impl XofReader, v: &mut [u64]) {
     v[VEC_N_SIZE_64 - 1] &= bitmask(PARAM_N, 64);
 }
 
+#[cfg_attr(feature = "profiling", inline(never))]
 pub fn vect_add(o: &mut [u64], v1: &[u64], v2: &[u64], size: usize){
     for i in 0..size{
         o[i] = v1[i] ^ v2[i];
@@ -137,6 +138,7 @@ pub fn vect_compare(v1: &[u8], v2: &[u8], size: usize) -> u8{
     ((r - 1) >> 8) as u8
 }
 
+#[cfg_attr(feature = "profiling", inline(never))]
 pub fn vect_truncate(v: &mut [u64]){
     let orig_words: usize = (PARAM_N + 63) /64;
     let mut new_full_words: usize = PARAM_N1N2 / 64;
