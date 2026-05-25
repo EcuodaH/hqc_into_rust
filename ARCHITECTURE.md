@@ -170,6 +170,10 @@ La clé secrète est simplement la graine privée — 32 octets. `x` et `y` ne s
 
 La première partie du chiffré est `u = r2·h + r1` — ça ressemble à une clé publique PKE et c'est intentionnel. La deuxième partie est `v = encode(m) + trunc(r2·s + e)` : le message est d'abord encodé avec le code correcteur d'erreurs (Reed-Solomon puis Reed-Muller, 16 octets → 17 664 bits), puis "bruité" en lui ajoutant `r2·s + e`. C'est ce bruit qui sera retiré au déchiffrement.
 
+### `hqc_pke_decrypt` — déchiffrement
+
+À partir de la clé secrète et du chiffré `(u, v)`, cette fonction retrouve le message. Elle commence par régénérer `y` depuis la graine secrète, puis calcule `y·u`. En développant les termes, on peut montrer que `v + trunc(y·u)` est égal à `encode(m)` plus un vecteur d'erreur de poids borné — parce que tous les vecteurs impliqués (x, y, r1, r2, e) sont épars. Le code correcteur d'erreurs retire ce bruit résiduel et retrouve le message original. Les paramètres garantissent que ça fonctionne avec probabilité 1 - 2^{-128}.
+
 ---
 
 ## 6. La multiplication de polynômes
