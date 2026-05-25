@@ -57,6 +57,6 @@ Pour pouvoir lancer les tests (kats) il faut avoir le compilateur cargo et lance
 
 ## Documentation
 
-[Fonctionnement des différents modules](https://github.com/EcuodaH/hqc_into_rust/tree/main/documentation.pdf)  [lien à modifier]
+[Pour plus de détails sur l'architecture](https://github.com/EcuodaH/hqc_into_rust/tree/main/ARCHITECTURE.md)
 
 
