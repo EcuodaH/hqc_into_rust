@@ -65,9 +65,8 @@ Le portage de C vers Rust a nécessité plusieurs ajustements liés aux différe
 -Les soustractions entières qui wrappent silencieusement en C (comme 0 - 1 = 255 sur un u8) déclenchent un panic en Rust debug, résolu avec wrapping_sub.\
 -Les pointeurs et casts unsafe omniprésents en C — notamment pour lire des tableaux u64 comme des slices d'octets — ont dû être explicitement marqués unsafe en Rust via std::slice::from_raw_parts.\
 
-
 ## Réflexion sur les résultats
-
+Temps constant : se référer au fichier TEMPS_CONSTANT.md
 
 ## Auteurs
 
