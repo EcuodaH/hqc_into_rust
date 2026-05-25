@@ -6,7 +6,10 @@ L'objectif de ce projet a été d'implémenter l'algorithme hqc en langage Rust
 
 ## Présentation de l'archive
 
-L'archive se décompose en différents modules s'occupant chacune d'une partie de l'algorithme.
+L'archive se décompose en différents modules s'occupant chacune d'une partie de l'algorithme.\
+Pour plus d'information sur l'architecture : [ARCHITECTURE.md](https://github.com/EcuodaH/hqc_into_rust/tree/main/ARCHITECTURE.md)
+
+En voici un résumé très concis :
 
 ### Descriptions des modules
 #### Le module hqc.rs
@@ -66,7 +69,7 @@ Le portage de C vers Rust a nécessité plusieurs ajustements liés aux différe
 -Les pointeurs et casts unsafe omniprésents en C — notamment pour lire des tableaux u64 comme des slices d'octets — ont dû être explicitement marqués unsafe en Rust via std::slice::from_raw_parts.\
 
 ## Réflexion sur les résultats
-Temps constant : se référer au fichier TEMPS_CONSTANT.md
+Temps constant : se référer au fichier [TEMPS_CONSTANT.md](https://github.com/EcuodaH/hqc_into_rust/tree/main/TEMPS_CONSTANT.md)
 
 ## Auteurs
 
