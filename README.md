@@ -77,10 +77,10 @@ Profiling : se référer au fichier [RAPPORT_PROFILING.md](https://github.com/Ec
 
 ## Auteurs
 
-- Haddouche Mathis, mail : mathis.haddouche@alumni.enac.fr
-- Béguet Mathis
-- Ledrappier Abel
-- Leroux Arthur, [arthur](https://github.com/EcuodaH/hqc_into_rust/blob/main)
+- HADDOUCHE Mathis, mail : mathis.haddouche@alumni.enac.fr
+- BEGUET Mathis
+- LEDRAPPIER Abel
+- LEROUX Arthur
 
 
 ## Documentation
