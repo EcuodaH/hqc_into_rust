@@ -60,7 +60,7 @@ peak_hwm_kb 4076
 
 ### Implémentation C
 
-Le fichier de profiling se mets dans `tests/bench/benchmark_kats.c` du dépôt C. (Fichier donné dans le dossier implem_bench du répo rust)
+Le fichier de profiling se mets dans `tests/bench/benchmark_kats.c` du dépôt C. (Fichier benchmark sur [Ce Lien](https://github.com/EcuodaH/hqc_into_rust/tree/main/benches/bench_c)\
 Il utilise la même approche : `clock_gettime(CLOCK_MONOTONIC)` et lecture de`/proc/self/status` pour la mémoire.
 
 **Compilation et exécution :**
