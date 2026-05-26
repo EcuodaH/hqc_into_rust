@@ -70,6 +70,7 @@ Le portage de C vers Rust a nécessité plusieurs ajustements liés aux différe
 
 ## Réflexion sur les résultats
 Temps constant : se référer au fichier [TEMPS_CONSTANT.md](https://github.com/EcuodaH/hqc_into_rust/tree/main/TEMPS_CONSTANT.md)
+Profiling : se référer au fichier [REPORT_PROFILING.md](https://github.com/EcuodaH/hqc_into_rust/tree/main/REPORT_PROFILING.md)
 
 ## Auteurs
 
