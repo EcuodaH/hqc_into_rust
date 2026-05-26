@@ -69,6 +69,9 @@ Le portage de C vers Rust a nécessité plusieurs ajustements liés aux différe
 -Les pointeurs et casts unsafe omniprésents en C — notamment pour lire des tableaux u64 comme des slices d'octets — ont dû être explicitement marqués unsafe en Rust via std::slice::from_raw_parts.\
 
 ## Réflexion sur les résultats
+Les mesures réalisées sur 100 vecteurs de test NIST révèlent deux écarts significatifs entre l'implémentation Rust et la référence C. En termes de temps d'exécution, le C est environ 20 % plus rapide sur les trois opérations (keypair, enc, dec), indépendamment de la configuration d'inlining utilisée côté Rust. Cet écart s'explique principalement par le fait que karatsuba_mul concentre à lui seul ~98 % des instructions exécutées : c'est une fonction large et récursive sur laquelle l'inlining LLVM n'a aucun effet, ce qui rend ce levier d'optimisation inopérant pour HQC. L'activation de l'inlining (release-opt) réduit néanmoins la variance d'un facteur 2 à 7 selon l'opération, en rendant le comportement de cache plus prévisible pour les fonctions auxiliaires. En mémoire, le Rust consomme environ 2,3 fois plus au pic (4 076 Ko contre 1 768 Ko) : là où le C alloue ses buffers sur la pile, le Rust utilise des Vec<u8> alloués sur le tas. Ces résultats indiquent que les gains les plus accessibles seraient l'optimisation de karatsuba_mul elle-même (vectorisation AVX2, parallélisation des multiplications indépendantes), plutôt qu'un travail sur l'inlining ou les paramètres de compilation.
+
+
 Temps constant : se référer au fichier [TEMPS_CONSTANT.md](https://github.com/EcuodaH/hqc_into_rust/tree/main/TEMPS_CONSTANT.md)\
 Profiling : se référer au fichier [RAPPORT_PROFILING.md](https://github.com/EcuodaH/hqc_into_rust/tree/main/RAPPORT_PROFILING.md)
 
