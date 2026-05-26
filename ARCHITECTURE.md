@@ -443,7 +443,7 @@ Après usage, les données secrètes (graines, clés, message interne `m`) sont 
 ### Temps-constant
 
 En Rust (comme en C), un `if` peut s'exécuter plus ou moins vite selon la branche prise. Un attaquant qui mesure le temps d'exécution peut parfois en déduire le résultat d'une comparaison — c'est une attaque par timing. Pour y résister, les comparaisons critiques utilisent des masques binaires et des opérations arithmétiques qui prennent toujours le même temps, quelle que soit la valeur des données.
-Pour plus d'information sur le temps constant dans HQC voir la section concernée dans le README.md
+Pour plus d'information sur le temps constant dans HQC voir la section concernée dans le [TEMPS_CONSTANT.md](https://github.com/EcuodaH/hqc_into_rust/edit/main/TEMPS_CONSTANT.md)
 
 ### `wrapping_sub`
 
