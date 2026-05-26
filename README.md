@@ -69,8 +69,8 @@ Le portage de C vers Rust a nécessité plusieurs ajustements liés aux différe
 -Les pointeurs et casts unsafe omniprésents en C — notamment pour lire des tableaux u64 comme des slices d'octets — ont dû être explicitement marqués unsafe en Rust via std::slice::from_raw_parts.\
 
 ## Réflexion sur les résultats
-Temps constant : se référer au fichier [TEMPS_CONSTANT.md](https://github.com/EcuodaH/hqc_into_rust/tree/main/TEMPS_CONSTANT.md)
-Profiling : se référer au fichier [REPORT_PROFILING.md](https://github.com/EcuodaH/hqc_into_rust/tree/main/REPORT_PROFILING.md)
+Temps constant : se référer au fichier [TEMPS_CONSTANT.md](https://github.com/EcuodaH/hqc_into_rust/tree/main/TEMPS_CONSTANT.md)\
+Profiling : se référer au fichier [RAPPORT_PROFILING.md](https://github.com/EcuodaH/hqc_into_rust/tree/main/RAPPORT_PROFILING.md)
 
 ## Auteurs
 
